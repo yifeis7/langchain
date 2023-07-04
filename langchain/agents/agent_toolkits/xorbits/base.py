@@ -22,6 +22,7 @@ from langchain.chains.llm import LLMChain
 from langchain.schema import BasePromptTemplate
 from langchain.schema.messages import SystemMessage
 from langchain.tools.python.tool import PythonAstREPLTool
+import xorbits
 
 
 def _get_multi_prompt(
@@ -51,6 +52,7 @@ def _get_multi_prompt(
 
     df_locals = {}
     for i, dataframe in enumerate(dfs):
+        xorbits.run(dataframe)
         df_locals[f"df{i + 1}"] = dataframe
     tools = [PythonAstREPLTool(locals=df_locals)]
 
@@ -60,7 +62,7 @@ def _get_multi_prompt(
 
     partial_prompt = prompt.partial()
     if "dfs_head" in input_variables:
-        dfs_head = "\n\n".join([d.head().to_markdown() for d in dfs])
+        dfs_head = "\n\n".join([d.head().to_markdown().fetch() for d in dfs])
         partial_prompt = partial_prompt.partial(num_dfs=str(num_dfs), dfs_head=dfs_head)
     if "num_dfs" in input_variables:
         partial_prompt = partial_prompt.partial(num_dfs=str(num_dfs))
@@ -91,7 +93,7 @@ def _get_single_prompt(
 
     if prefix is None:
         prefix = PREFIX
-
+    xorbits.run(df)
     tools = [PythonAstREPLTool(locals={"df": df})]
 
     prompt = ZeroShotAgent.create_prompt(
@@ -100,7 +102,7 @@ def _get_single_prompt(
 
     partial_prompt = prompt.partial()
     if "df_head" in input_variables:
-        partial_prompt = partial_prompt.partial(df_head=str(df.head().to_markdown()))
+        partial_prompt = partial_prompt.partial(df_head=str(df.head().to_markdown().fetch()))
     return partial_prompt, tools
 
 
@@ -153,9 +155,9 @@ def _get_functions_single_prompt(
     if suffix is not None:
         suffix_to_use = suffix
         if include_df_in_prompt:
-            suffix_to_use = suffix_to_use.format(df_head=str(df.head().to_markdown()))
+            suffix_to_use = suffix_to_use.format(df_head=str(df.head().to_markdown().fetch()))
     elif include_df_in_prompt:
-        suffix_to_use = FUNCTIONS_WITH_DF.format(df_head=str(df.head().to_markdown()))
+        suffix_to_use = FUNCTIONS_WITH_DF.format(df_head=str(df.head().to_markdown().fetch()))
     else:
         suffix_to_use = ""
 
@@ -177,12 +179,12 @@ def _get_functions_multi_prompt(
     if suffix is not None:
         suffix_to_use = suffix
         if include_df_in_prompt:
-            dfs_head = "\n\n".join([d.head().to_markdown() for d in dfs])
+            dfs_head = "\n\n".join([d.head().to_markdown().fetch() for d in dfs])
             suffix_to_use = suffix_to_use.format(
                 dfs_head=dfs_head,
             )
     elif include_df_in_prompt:
-        dfs_head = "\n\n".join([d.head().to_markdown() for d in dfs])
+        dfs_head = "\n\n".join([d.head().to_markdown().fetch() for d in dfs])
         suffix_to_use = FUNCTIONS_WITH_MULTI_DF.format(
             dfs_head=dfs_head,
         )
@@ -260,6 +262,8 @@ def create_xorbits_dataframe_agent(
     **kwargs: Dict[str, Any],
 ) -> AgentExecutor:
     """Construct a xorbits.pandas agent from an LLM and dataframe."""
+    if(df is not None):
+        xorbits.run(df)
     agent: BaseSingleActionAgent
     if agent_type == AgentType.ZERO_SHOT_REACT_DESCRIPTION:
         prompt, tools = _get_prompt_and_tools(
