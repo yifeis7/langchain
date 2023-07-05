@@ -7,8 +7,6 @@ from xorbits.pandas import DataFrame
 from langchain.agents import create_xorbits_dataframe_agent
 from langchain.agents.agent import AgentExecutor
 from langchain.llms import OpenAI
-import os
-os.environ["OPENAI_API_KEY"] = "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"    
 
 @pytest.fixture(scope="module")
 def df() -> DataFrame:
